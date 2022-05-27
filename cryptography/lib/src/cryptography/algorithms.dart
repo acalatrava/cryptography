@@ -5,6 +5,8 @@ import 'package:cryptography/dart.dart';
 import 'package:cryptography/helpers.dart';
 import 'package:meta/meta.dart';
 
+import 'mac_algorithm.dart';
+
 /// _AES-CBC_ (cipher block chaining mode) [Cipher].
 ///
 /// ## Available implementation
@@ -224,6 +226,124 @@ abstract class AesCtr extends StreamingCipher {
   @override
   String toString() {
     return 'AesCtr.with${secretKeyLength * 8}bits(macAlgorithm: $macAlgorithm)';
+  }
+}
+
+/// _AES-GCM_ (Galois/Counter Mode) [Cipher].
+///
+/// ## Available implementation
+///   * In browsers, [BrowserAesGcm] is used by default.
+///   * Otherwise [DartAesGcm] is used by default.
+///   * The package [cryptography_flutter](https://pub.dev/packages/cryptography_flutter)
+///     supports AES-GCM operating system APIs available in Android and iOS.
+///     __We recommend you use "package:cryptography_flutter" for the best
+///     performance and easier cryptographic compliance.__
+///
+/// ## About the algorithm
+///   * Three possible key lengths:
+///     * 128 bits: [AesGcm.with128bits]
+///     * 192 bits: [AesGcm.with192bits]
+///     * 256 bits: [AesGcm.with256bits]
+///   * AES-GCM takes a 128-bit "nonce" block as a parameter. It is split into
+///     a random part and block counter. In our implementation, the random part
+///     is 96 bits by default, which means the block counter is 32 bits. When
+///     block counter is 32 bits, the maximum size of a message is _block_size *
+///     2^32 = 32 GB_. If you need longer messages, use a smaller nonce.
+///   * AES-GCM standard specifies a MAC algorithm ("GCM"). The output is a
+///     128-bit [Mac].
+///
+/// ## Example
+/// ```dart
+/// import 'package:cryptography/cryptography.dart';
+///
+/// Future<void> main() async {
+///   final message = <int>[1,2,3];
+///
+///   final algorithm = AesGcm.with128bits();
+///   final secretKey = await algorithm.newSecretKey();
+///   final nonce = algorithm.newNonce();
+///
+///   // Encrypt
+///   final secretBox = await algorithm.encrypt(
+///     message,
+///     secretKey: secretKey,
+///     nonce: nonce,
+///   );
+///   print('Nonce: ${secretBox.nonce}')
+///   print('Ciphertext: ${secretBox.cipherText}')
+///   print('MAC: ${secretBox.mac.bytes}')
+///
+///   // Decrypt
+///   final clearText = await algorithm.encrypt(
+///     secretBox,
+///     secretKey: secretKey,
+///   );
+///   print('Cleartext: $clearText');
+/// }
+/// ```
+abstract class AesGcmNoMac extends StreamingCipher {
+  /// MAC algorithm used by _AES-GCM_.
+  static const MacAlgorithm aesGcmMac = MacAlgorithm.empty;
+
+  /// Constructor for classes that extend this class.
+  @protected
+  const AesGcmNoMac.constructor();
+
+  factory AesGcmNoMac.with128bits({
+    int nonceLength = 12,
+  }) {
+    return AesGcmNoMac._(
+      secretKeyLength: 16,
+      nonceLength: nonceLength,
+    );
+  }
+
+  factory AesGcmNoMac.with192bits({
+    int nonceLength = 12,
+  }) {
+    return AesGcmNoMac._(
+      secretKeyLength: 24,
+      nonceLength: nonceLength,
+    );
+  }
+
+  factory AesGcmNoMac.with256bits({
+    int nonceLength = 12,
+  }) {
+    return AesGcmNoMac._(
+      secretKeyLength: 32,
+      nonceLength: nonceLength,
+    );
+  }
+
+  factory AesGcmNoMac._({
+    int secretKeyLength = 32,
+    int nonceLength = 12,
+  }) {
+    return Cryptography.instance.aesGcm(
+      secretKeyLength: secretKeyLength,
+      nonceLength: nonceLength,
+    );
+  }
+
+  @override
+  int get hashCode => (AesGcmNoMac).hashCode;
+
+  @override
+  MacAlgorithm get macAlgorithm => AesGcmNoMac.aesGcmMac;
+
+  @override
+  int get nonceLength;
+
+  @override
+  bool operator ==(other) =>
+      other is AesGcmNoMac &&
+      secretKeyLength == other.secretKeyLength &&
+      nonceLength == other.nonceLength;
+
+  @override
+  String toString() {
+    return 'AesGcmNoMac.with${secretKeyLength * 8}bits(nonceLength: $nonceLength)';
   }
 }
 
